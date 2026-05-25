@@ -448,7 +448,9 @@
     let missionComplete = false;
 
     const player = {
-      x: 550, y: 510, r: 20, speed: 218, vx: 0, vy: 0, facing: 0,
+      // Spawned clear of the dojo collision rectangle. The previous y=510 overlapped
+      // the dojo blocker, so every movement attempt was cancelled by collision.
+      x: 650, y: 560, r: 20, speed: 218, vx: 0, vy: 0, facing: 0,
       hp: 100, maxHp: 100, chakra: 100, maxChakra: 100,
       level: 1, xp: 0, xpNext: 80, coins: 0,
       attackCd: 0, throwCd: 0, dashCd: 0, invuln: 0,
@@ -579,23 +581,47 @@
       return Math.hypot(cx - nx, cy - ny) < cr;
     }
 
-    function moveWithCollision(obj, dx, dy) {
-      obj.x += dx;
-      for (const rect of blockers) {
-        if (circleRectCollision(obj.x, obj.y, obj.r, rect)) {
-          obj.x -= dx;
-          break;
-        }
+    function resolveRectCollision(obj, rect) {
+      const pad = rect.pad || 0;
+      const rx = rect.x - pad, ry = rect.y - pad, rw = rect.w + pad * 2, rh = rect.h + pad * 2;
+      const nx = clamp(obj.x, rx, rx + rw);
+      const ny = clamp(obj.y, ry, ry + rh);
+      let vx = obj.x - nx;
+      let vy = obj.y - ny;
+      let d = Math.hypot(vx, vy);
+
+      if (d >= obj.r) return;
+
+      // If an entity is exactly inside a rectangle, choose the nearest escape edge.
+      // This prevents permanent soft-locks if a spawn point or knockback overlaps a wall.
+      if (d < 0.0001) {
+        const exits = [
+          { dx: rx - obj.x - obj.r - 0.1, dy: 0, gap: Math.abs(obj.x - rx) },
+          { dx: rx + rw - obj.x + obj.r + 0.1, dy: 0, gap: Math.abs(rx + rw - obj.x) },
+          { dx: 0, dy: ry - obj.y - obj.r - 0.1, gap: Math.abs(obj.y - ry) },
+          { dx: 0, dy: ry + rh - obj.y + obj.r + 0.1, gap: Math.abs(ry + rh - obj.y) }
+        ].sort((a, b) => a.gap - b.gap)[0];
+        obj.x += exits.dx;
+        obj.y += exits.dy;
+        return;
       }
-      obj.y += dy;
-      for (const rect of blockers) {
-        if (circleRectCollision(obj.x, obj.y, obj.r, rect)) {
-          obj.y -= dy;
-          break;
-        }
-      }
+
+      const push = obj.r - d + 0.1;
+      obj.x += (vx / d) * push;
+      obj.y += (vy / d) * push;
+    }
+
+    function resolveCollisions(obj) {
+      for (const rect of blockers) resolveRectCollision(obj, rect);
       obj.x = clamp(obj.x, obj.r + 4, WORLD.w - obj.r - 4);
       obj.y = clamp(obj.y, obj.r + 4, WORLD.h - obj.r - 4);
+    }
+
+    function moveWithCollision(obj, dx, dy) {
+      obj.x += dx;
+      resolveCollisions(obj);
+      obj.y += dy;
+      resolveCollisions(obj);
     }
 
     function showToast(message) {
