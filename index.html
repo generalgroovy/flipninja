@@ -1,1 +1,1563 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="description" content="A static GitHub Pages-ready third-person ninja role-playing game." />
+  <title>Shadow Scrolls: Ninja RPG</title>
+  <style>
+    :root {
+      --ink: #16120f;
+      --paper: #f6dfb2;
+      --ember: #ff7a1a;
+      --ember-2: #ffb13b;
+      --crimson: #d82828;
+      --sky: #91d7ff;
+      --night: #1b2438;
+      --leaf: #3c8b4f;
+      --chakra: #38c8ff;
+      --panel: rgba(20, 17, 14, 0.82);
+      --stroke: rgba(18, 12, 8, 0.92);
+    }
 
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 0%, #314662 0%, #131723 55%, #07090f 100%);
+      color: var(--paper);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #game {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      image-rendering: auto;
+      cursor: crosshair;
+      background: #1b2438;
+    }
+
+    .vignette {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      background: radial-gradient(circle at 50% 45%, transparent 52%, rgba(0,0,0,0.42) 100%);
+      mix-blend-mode: multiply;
+    }
+
+    .hud {
+      position: fixed;
+      z-index: 5;
+      top: 14px;
+      left: 14px;
+      display: grid;
+      gap: 8px;
+      min-width: min(420px, calc(100vw - 28px));
+      pointer-events: none;
+    }
+
+    .hud-card,
+    .dialogue,
+    .quest,
+    .menu,
+    .toast,
+    .mobile-pad,
+    .mobile-actions {
+      border: 3px solid var(--stroke);
+      box-shadow: 0 8px 0 rgba(0,0,0,0.35), inset 0 0 0 2px rgba(255,255,255,0.09);
+      background: linear-gradient(145deg, rgba(42,30,20,0.93), rgba(12,12,16,0.88));
+      backdrop-filter: blur(6px);
+    }
+
+    .hud-card {
+      padding: 11px 12px 10px;
+      border-radius: 18px;
+      width: min(420px, calc(100vw - 28px));
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 2px solid rgba(0,0,0,0.55);
+      background: linear-gradient(180deg, var(--ember-2), var(--ember));
+      color: #211207;
+      text-shadow: 0 1px rgba(255,255,255,0.4);
+    }
+
+    .meter-wrap { display: grid; gap: 6px; }
+    .meter-row {
+      display: grid;
+      grid-template-columns: 78px 1fr 48px;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .meter {
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.42);
+      border: 2px solid rgba(0,0,0,0.75);
+      overflow: hidden;
+    }
+
+    .meter > i {
+      display: block;
+      height: 100%;
+      width: 50%;
+      border-right: 2px solid rgba(255,255,255,0.3);
+      box-shadow: inset 0 2px 0 rgba(255,255,255,0.26);
+    }
+
+    .hp > i { background: linear-gradient(90deg, #ba1818, #ff4747); }
+    .chakra > i { background: linear-gradient(90deg, #1685df, #50ddff); }
+    .xp > i { background: linear-gradient(90deg, #f2b13b, #fff06e); }
+
+    .quest {
+      position: fixed;
+      z-index: 5;
+      right: 14px;
+      top: 14px;
+      width: min(360px, calc(100vw - 28px));
+      padding: 13px 14px;
+      border-radius: 18px;
+      pointer-events: none;
+    }
+
+    .quest h2,
+    .dialogue h3,
+    .menu h1 {
+      margin: 0 0 8px;
+      line-height: 1;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--ember-2);
+      text-shadow: 3px 3px 0 #000;
+    }
+
+    .quest h2 { font-size: 15px; }
+    .quest p, .quest li { margin: 0; font-size: 13px; line-height: 1.45; }
+    .quest ul { margin: 7px 0 0; padding-left: 18px; }
+    .quest li.done { color: #a7ffbf; text-decoration: line-through; }
+
+    .dialogue {
+      position: fixed;
+      z-index: 6;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      width: min(760px, calc(100vw - 28px));
+      border-radius: 22px;
+      padding: 16px 18px;
+      display: none;
+    }
+
+    .dialogue.show { display: block; }
+    .dialogue h3 { font-size: 16px; }
+    .dialogue p { margin: 0; line-height: 1.45; font-size: 15px; }
+    .dialogue small { display: block; margin-top: 10px; color: rgba(246,223,178,0.76); }
+
+    .toast {
+      position: fixed;
+      z-index: 7;
+      left: 50%;
+      top: 20px;
+      transform: translateX(-50%) translateY(-120px);
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      color: var(--paper);
+      transition: transform 220ms ease;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: calc(100vw - 28px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .menu {
+      position: fixed;
+      z-index: 8;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -50%);
+      width: min(780px, calc(100vw - 28px));
+      border-radius: 28px;
+      padding: clamp(18px, 4vw, 34px);
+      text-align: left;
+    }
+
+    .menu h1 {
+      font-size: clamp(34px, 8vw, 78px);
+      margin-bottom: 10px;
+      color: var(--ember);
+      text-shadow: 5px 5px 0 #000, -2px -2px 0 rgba(255,255,255,0.18);
+    }
+
+    .menu .subtitle {
+      margin: 0 0 18px;
+      font-size: clamp(14px, 2vw, 18px);
+      max-width: 62ch;
+      color: rgba(246,223,178,0.88);
+      line-height: 1.45;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .panel-lite {
+      border-radius: 18px;
+      border: 2px solid rgba(0,0,0,0.64);
+      background: rgba(255,255,255,0.06);
+      padding: 13px 14px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 14px;
+    }
+    .controls b { color: #fff0a4; }
+
+    button {
+      appearance: none;
+      border: 3px solid #140f0b;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #ffe083, #ff8d20 62%, #c74319);
+      color: #1e1008;
+      font-weight: 1000;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 13px 16px;
+      box-shadow: 0 7px 0 rgba(0,0,0,0.52), inset 0 2px 0 rgba(255,255,255,0.42);
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.06); }
+    button:active { transform: translateY(4px); box-shadow: 0 3px 0 rgba(0,0,0,0.52); }
+
+    .corner-note {
+      position: fixed;
+      z-index: 5;
+      left: 14px;
+      bottom: 12px;
+      color: rgba(246,223,178,0.72);
+      font-size: 12px;
+      pointer-events: none;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .mobile-pad,
+    .mobile-actions {
+      display: none;
+      position: fixed;
+      z-index: 6;
+      bottom: 18px;
+      pointer-events: auto;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .mobile-pad {
+      left: 16px;
+      width: 136px;
+      height: 136px;
+      border-radius: 50%;
+      opacity: 0.82;
+    }
+    .stick {
+      position: absolute;
+      left: 43px;
+      top: 43px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 3px solid rgba(0,0,0,0.75);
+      background: radial-gradient(circle, #fff0bc, var(--ember));
+      box-shadow: 0 3px 0 rgba(0,0,0,0.45);
+    }
+    .mobile-actions {
+      right: 16px;
+      display: none;
+      grid-template-columns: repeat(2, 64px);
+      gap: 10px;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    .mobile-actions button {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      padding: 0;
+      font-size: 11px;
+    }
+
+    @media (hover: none), (pointer: coarse) {
+      .mobile-pad { display: block; }
+      .mobile-actions { display: grid; }
+      .corner-note { display: none; }
+      .quest { top: auto; bottom: 170px; right: 10px; width: min(330px, calc(100vw - 20px)); }
+      .hud { top: 10px; left: 10px; }
+      .hud-card { width: min(360px, calc(100vw - 20px)); }
+      .dialogue { bottom: 172px; }
+    }
+
+    @media (max-width: 720px) {
+      .menu-grid { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr; }
+      .quest { font-size: 12px; }
+      .meter-row { grid-template-columns: 62px 1fr 42px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Shadow Scrolls ninja role-playing game"></canvas>
+  <div class="vignette"></div>
+
+  <section class="hud" aria-live="polite">
+    <div class="hud-card">
+      <div class="title-row">
+        <span>Rin of the Ember Fox Clan</span>
+        <span class="badge" id="levelBadge">LV 1</span>
+      </div>
+      <div class="meter-wrap">
+        <div class="meter-row"><span>Health</span><span class="meter hp"><i id="hpBar"></i></span><span id="hpText">100</span></div>
+        <div class="meter-row"><span>Chakra</span><span class="meter chakra"><i id="chakraBar"></i></span><span id="chakraText">100</span></div>
+        <div class="meter-row"><span>Renown</span><span class="meter xp"><i id="xpBar"></i></span><span id="xpText">0/80</span></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="quest" id="questBox">
+    <h2>Mission Scroll</h2>
+    <p id="questText">Speak with Master Haku at the dojo gate.</p>
+    <ul id="objectives"></ul>
+  </aside>
+
+  <section class="dialogue" id="dialogueBox">
+    <h3 id="dialogueName"></h3>
+    <p id="dialogueText"></p>
+    <small>Press E / Tap Interact to continue</small>
+  </section>
+
+  <div class="toast" id="toast"></div>
+
+  <section class="menu" id="menu">
+    <h1>Shadow Scrolls</h1>
+    <p class="subtitle">A compact third-person ninja RPG for GitHub Pages. Explore an original hidden village, train with your mentor, collect wind-scrolls, and repel masked raiders before the midnight bell.</p>
+    <div class="menu-grid">
+      <div class="panel-lite">
+        <ul class="controls">
+          <li><b>WASD / Arrows</b> Move</li>
+          <li><b>Mouse / Space</b> Katana strike</li>
+          <li><b>Q</b> Throw shuriken</li>
+          <li><b>Shift</b> Chakra dash</li>
+          <li><b>E</b> Talk / interact</li>
+          <li><b>P</b> Pause</li>
+        </ul>
+      </div>
+      <div class="panel-lite">
+        <button id="startBtn">Begin Mission</button>
+        <p style="margin:12px 0 0;font-size:13px;line-height:1.4;color:rgba(246,223,178,0.78)">Original anime ninja styling: bold ink outlines, warm training-cloak colors, scroll UI, chakra effects, and rooftop village combat.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="corner-note">WASD move · Space/Click attack · Q shuriken · Shift dash · E interact · P pause</div>
+  <div class="mobile-pad" id="mobilePad"><div class="stick" id="stick"></div></div>
+  <div class="mobile-actions">
+    <button data-act="attack">Strike</button>
+    <button data-act="throw">Star</button>
+    <button data-act="dash">Dash</button>
+    <button data-act="interact">Talk</button>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const hpBar = document.getElementById('hpBar');
+    const chakraBar = document.getElementById('chakraBar');
+    const xpBar = document.getElementById('xpBar');
+    const hpText = document.getElementById('hpText');
+    const chakraText = document.getElementById('chakraText');
+    const xpText = document.getElementById('xpText');
+    const levelBadge = document.getElementById('levelBadge');
+    const questText = document.getElementById('questText');
+    const objectives = document.getElementById('objectives');
+    const dialogueBox = document.getElementById('dialogueBox');
+    const dialogueName = document.getElementById('dialogueName');
+    const dialogueText = document.getElementById('dialogueText');
+    const toastEl = document.getElementById('toast');
+    const menu = document.getElementById('menu');
+    const startBtn = document.getElementById('startBtn');
+    const mobilePad = document.getElementById('mobilePad');
+    const stick = document.getElementById('stick');
+
+    const TAU = Math.PI * 2;
+    const WORLD = { w: 3200, h: 2200 };
+    const keys = new Set();
+    const mouse = { x: 0, y: 0, down: false };
+    const camera = { x: 0, y: 0 };
+    const mobileMove = { x: 0, y: 0, active: false };
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let running = false;
+    let paused = false;
+    let last = performance.now();
+    let toastTimer = 0;
+    let dialogue = null;
+    let dialogueStep = 0;
+    let time = 0;
+    let shake = 0;
+    let missionComplete = false;
+
+    const player = {
+      x: 550, y: 510, r: 20, speed: 218, vx: 0, vy: 0, facing: 0,
+      hp: 100, maxHp: 100, chakra: 100, maxChakra: 100,
+      level: 1, xp: 0, xpNext: 80, coins: 0,
+      attackCd: 0, throwCd: 0, dashCd: 0, invuln: 0,
+      attacking: 0, state: 'ready', scrolls: 0, defeated: 0,
+      respawn: 0
+    };
+
+    const quest = {
+      stage: 0,
+      stages: [
+        { title: 'Speak with Master Haku at the dojo gate.', goals: [{ key: 'talkHaku', label: 'Receive the trial mission', done: false }] },
+        { title: 'Recover village wind-scrolls from the training grounds.', goals: [{ key: 'scrolls', label: 'Collect 3 wind-scrolls', done: false }] },
+        { title: 'Drive raiders away from the north bridge.', goals: [{ key: 'raiders', label: 'Defeat 6 masked raiders', done: false }] },
+        { title: 'Return to Master Haku for promotion.', goals: [{ key: 'return', label: 'Report the mission outcome', done: false }] },
+        { title: 'Promotion earned. Free-roam the village or keep training.', goals: [{ key: 'complete', label: 'Hidden Ember genin rank achieved', done: true }] }
+      ]
+    };
+
+    const npcs = [
+      {
+        id: 'haku', name: 'Master Haku', x: 690, y: 460, r: 24, mood: 'mentor', color: '#34538a',
+        lines: [
+          'Rin, your first field trial starts now. The village wind-scrolls were scattered beyond the dojo path.',
+          'Move lightly, conserve chakra, and keep your eyes on the enemy rhythm. Bring back three scrolls first.',
+          'When the scrolls are secure, go north to the bridge and repel the masked raiders. Return after the fight.'
+        ],
+        after: ['Your stance has changed. The village saw it too. You are no longer just a trainee.'],
+      },
+      { id: 'mio', name: 'Mio the Ramen Runner', x: 1040, y: 760, r: 20, mood: 'villager', color: '#cf7b26', lines: ['Raiders hate loud bells and love isolated bridges. Also, eat after combat. Not before.'] },
+      { id: 'taro', name: 'Taro the Smith', x: 1485, y: 590, r: 22, mood: 'smith', color: '#656565', lines: ['Your shuriken will fly farther if you throw while standing still. But a living ninja is better than a perfect throw.'] }
+    ];
+
+    const particles = [];
+    const projectiles = [];
+    const slashArcs = [];
+    const floatingTexts = [];
+    const enemies = [];
+    const pickups = [];
+
+    const buildings = [
+      { x: 375, y: 320, w: 260, h: 180, roof: '#d35a1d', wall: '#ba8651', label: 'Dojo' },
+      { x: 880, y: 675, w: 230, h: 150, roof: '#bf311f', wall: '#d0a066', label: 'Ramen' },
+      { x: 1390, y: 500, w: 255, h: 170, roof: '#5b5f66', wall: '#a87f62', label: 'Smith' },
+      { x: 1880, y: 860, w: 330, h: 210, roof: '#cf6b21', wall: '#b9916a', label: 'Clan Hall' },
+      { x: 2460, y: 1390, w: 330, h: 210, roof: '#7b2f2a', wall: '#b98b5c', label: 'Bridge Post' },
+      { x: 480, y: 1430, w: 315, h: 200, roof: '#be3d22', wall: '#aa875f', label: 'Archive' },
+    ];
+
+    const blockers = buildings.map(b => ({ x: b.x, y: b.y, w: b.w, h: b.h, pad: 8 }));
+    blockers.push(
+      { x: 2365, y: 1150, w: 770, h: 90, pad: 0 },
+      { x: 0, y: -40, w: WORLD.w, h: 50, pad: 0 },
+      { x: 0, y: WORLD.h - 10, w: WORLD.w, h: 50, pad: 0 },
+      { x: -40, y: 0, w: 50, h: WORLD.h, pad: 0 },
+      { x: WORLD.w - 10, y: 0, w: 50, h: WORLD.h, pad: 0 }
+    );
+
+    const trees = [];
+    const rocks = [];
+    const grassTufts = [];
+    const lanterns = [];
+
+    function seededNoise(i) {
+      const x = Math.sin(i * 999.317) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function initDecor() {
+      trees.length = rocks.length = grassTufts.length = lanterns.length = 0;
+      for (let i = 0; i < 120; i++) {
+        const x = 100 + seededNoise(i + 1) * (WORLD.w - 200);
+        const y = 120 + seededNoise(i + 40) * (WORLD.h - 240);
+        if (isInsideVillagePath(x, y) || nearBuilding(x, y, 90)) continue;
+        trees.push({ x, y, r: 24 + seededNoise(i + 5) * 18, sway: seededNoise(i + 9) * TAU });
+      }
+      for (let i = 0; i < 60; i++) {
+        rocks.push({ x: 120 + seededNoise(i + 120) * (WORLD.w - 240), y: 120 + seededNoise(i + 200) * (WORLD.h - 240), r: 8 + seededNoise(i + 201) * 14 });
+      }
+      for (let i = 0; i < 360; i++) {
+        grassTufts.push({ x: seededNoise(i + 300) * WORLD.w, y: seededNoise(i + 700) * WORLD.h, a: seededNoise(i + 430) * TAU });
+      }
+      [[650, 590], [820, 625], [1150, 735], [1550, 745], [2090, 940], [2380, 1110], [2780, 1110], [2740, 1410]].forEach(([x, y]) => lanterns.push({ x, y }));
+    }
+
+    function isInsideVillagePath(x, y) {
+      return distanceToSegment(x, y, 610, 530, 2850, 1230) < 130 ||
+        distanceToSegment(x, y, 900, 760, 470, 1570) < 100 ||
+        distanceToSegment(x, y, 1620, 690, 2100, 990) < 100;
+    }
+
+    function nearBuilding(x, y, pad) {
+      return buildings.some(b => x > b.x - pad && x < b.x + b.w + pad && y > b.y - pad && y < b.y + b.h + pad);
+    }
+
+    function resize() {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      width = Math.floor(window.innerWidth);
+      height = Math.floor(window.innerHeight);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function len(x, y) { return Math.hypot(x, y); }
+    function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+    function angleTo(a, b) { return Math.atan2(b.y - a.y, b.x - a.x); }
+    function rand(min, max) { return min + Math.random() * (max - min); }
+    function chance(v) { return Math.random() < v; }
+
+    function distanceToSegment(px, py, x1, y1, x2, y2) {
+      const A = px - x1, B = py - y1, C = x2 - x1, D = y2 - y1;
+      const dot = A * C + B * D;
+      const l2 = C * C + D * D;
+      const t = clamp(dot / l2, 0, 1);
+      const x = x1 + t * C;
+      const y = y1 + t * D;
+      return Math.hypot(px - x, py - y);
+    }
+
+    function circleRectCollision(cx, cy, cr, rect) {
+      const pad = rect.pad || 0;
+      const rx = rect.x - pad, ry = rect.y - pad, rw = rect.w + pad * 2, rh = rect.h + pad * 2;
+      const nx = clamp(cx, rx, rx + rw);
+      const ny = clamp(cy, ry, ry + rh);
+      return Math.hypot(cx - nx, cy - ny) < cr;
+    }
+
+    function moveWithCollision(obj, dx, dy) {
+      obj.x += dx;
+      for (const rect of blockers) {
+        if (circleRectCollision(obj.x, obj.y, obj.r, rect)) {
+          obj.x -= dx;
+          break;
+        }
+      }
+      obj.y += dy;
+      for (const rect of blockers) {
+        if (circleRectCollision(obj.x, obj.y, obj.r, rect)) {
+          obj.y -= dy;
+          break;
+        }
+      }
+      obj.x = clamp(obj.x, obj.r + 4, WORLD.w - obj.r - 4);
+      obj.y = clamp(obj.y, obj.r + 4, WORLD.h - obj.r - 4);
+    }
+
+    function showToast(message) {
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      toastTimer = 2.2;
+    }
+
+    function addFloat(text, x, y, color = '#fff6bc') {
+      floatingTexts.push({ text, x, y, vy: -48, life: 1, color });
+    }
+
+    function addParticles(x, y, color, count = 12, speed = 120) {
+      for (let i = 0; i < count; i++) {
+        const a = rand(0, TAU);
+        const s = rand(speed * 0.2, speed);
+        particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, r: rand(2, 5), life: rand(0.28, 0.8), max: 0.8, color });
+      }
+    }
+
+    function sparkLine(x, y, a, color) {
+      for (let i = 0; i < 9; i++) {
+        const aa = a + rand(-0.55, 0.55);
+        const s = rand(80, 250);
+        particles.push({ x, y, vx: Math.cos(aa) * s, vy: Math.sin(aa) * s, r: rand(1.5, 3), life: rand(0.18, 0.38), max: 0.38, color });
+      }
+    }
+
+    function gainXp(amount) {
+      player.xp += amount;
+      addFloat('+' + amount + ' renown', player.x, player.y - 34, '#ffe36a');
+      while (player.xp >= player.xpNext) {
+        player.xp -= player.xpNext;
+        player.level++;
+        player.xpNext = Math.floor(player.xpNext * 1.32 + 35);
+        player.maxHp += 16;
+        player.maxChakra += 14;
+        player.hp = player.maxHp;
+        player.chakra = player.maxChakra;
+        addParticles(player.x, player.y, '#fff06e', 42, 240);
+        showToast('Level up! New ninja rank: LV ' + player.level);
+        shake = Math.max(shake, 9);
+      }
+    }
+
+    function spawnEnemy(x, y, type = 'raider') {
+      const tier = type === 'captain' ? 2 : 1;
+      enemies.push({
+        x, y, r: type === 'captain' ? 25 : 19, type,
+        hp: type === 'captain' ? 90 : 44,
+        maxHp: type === 'captain' ? 90 : 44,
+        speed: type === 'captain' ? 118 : 135,
+        damage: type === 'captain' ? 18 : 10,
+        sense: 520,
+        attackCd: rand(0.2, 1.0),
+        hurt: 0,
+        facing: 0,
+        wander: rand(0, TAU),
+        wanderT: rand(0.5, 2.0),
+        xp: type === 'captain' ? 55 : 22,
+        tier
+      });
+    }
+
+    function resetEnemies() {
+      enemies.length = 0;
+      [
+        [2450, 950], [2600, 900], [2810, 1020], [2920, 1240], [2520, 1375], [2720, 1480],
+        [1820, 1160], [2140, 1330]
+      ].forEach(([x, y]) => spawnEnemy(x, y));
+      spawnEnemy(2870, 1425, 'captain');
+    }
+
+    function initPickups() {
+      pickups.length = 0;
+      [[1130, 1030], [1710, 965], [2215, 1280]].forEach(([x, y], i) => pickups.push({ type: 'scroll', x, y, r: 18, taken: false, bob: i * 1.5 }));
+      [[760, 870], [1360, 930], [2050, 1240], [2680, 1580], [520, 1560]].forEach(([x, y], i) => pickups.push({ type: 'dumpling', x, y, r: 15, taken: false, bob: i }));
+    }
+
+    function updateQuestGoals() {
+      const s = quest.stages[quest.stage];
+      if (!s) return;
+      if (quest.stage === 0) s.goals[0].done = player.state === 'mission';
+      if (quest.stage === 1) s.goals[0].done = player.scrolls >= 3;
+      if (quest.stage === 2) s.goals[0].done = player.defeated >= 6;
+      if (quest.stage === 3) s.goals[0].done = missionComplete;
+
+      if (quest.stage === 1 && player.scrolls >= 3) {
+        quest.stage = 2;
+        showToast('Scrolls secured. Raiders sighted near the north bridge.');
+      } else if (quest.stage === 2 && player.defeated >= 6) {
+        quest.stage = 3;
+        showToast('Bridge secured. Return to Master Haku.');
+      } else if (quest.stage === 3 && missionComplete) {
+        quest.stage = 4;
+        showToast('Mission complete. Hidden Ember rank achieved.');
+      }
+      renderQuest();
+    }
+
+    function renderQuest() {
+      const s = quest.stages[quest.stage];
+      questText.textContent = s.title;
+      objectives.innerHTML = '';
+      for (const g of s.goals) {
+        const li = document.createElement('li');
+        li.className = g.done ? 'done' : '';
+        let label = g.label;
+        if (g.key === 'scrolls') label += ` (${Math.min(3, player.scrolls)}/3)`;
+        if (g.key === 'raiders') label += ` (${Math.min(6, player.defeated)}/6)`;
+        li.textContent = label;
+        objectives.appendChild(li);
+      }
+    }
+
+    function startDialogue(npc) {
+      if (dialogue && dialogue.npc === npc) return advanceDialogue();
+      dialogue = { npc, lines: (npc.id === 'haku' && quest.stage >= 3) ? npc.after : npc.lines };
+      dialogueStep = 0;
+      showDialogueLine();
+    }
+
+    function showDialogueLine() {
+      if (!dialogue) return;
+      dialogueName.textContent = dialogue.npc.name;
+      dialogueText.textContent = dialogue.lines[dialogueStep] || '';
+      dialogueBox.classList.add('show');
+    }
+
+    function advanceDialogue() {
+      if (!dialogue) return;
+      dialogueStep++;
+      if (dialogueStep < dialogue.lines.length) {
+        showDialogueLine();
+        return;
+      }
+      const npc = dialogue.npc;
+      dialogue = null;
+      dialogueBox.classList.remove('show');
+      if (npc.id === 'haku') {
+        if (quest.stage === 0) {
+          player.state = 'mission';
+          quest.stage = 1;
+          showToast('Mission accepted: recover three wind-scrolls.');
+        } else if (quest.stage === 3) {
+          missionComplete = true;
+          gainXp(85);
+          addParticles(npc.x, npc.y, '#ffdf6f', 30, 160);
+        }
+        updateQuestGoals();
+      }
+    }
+
+    function interact() {
+      if (dialogue) return advanceDialogue();
+      let nearest = null;
+      let best = Infinity;
+      for (const npc of npcs) {
+        const d = Math.hypot(player.x - npc.x, player.y - npc.y);
+        if (d < best) { best = d; nearest = npc; }
+      }
+      if (nearest && best < 100) {
+        startDialogue(nearest);
+        return;
+      }
+      showToast('No one close enough to talk to.');
+    }
+
+    function attack() {
+      if (player.attackCd > 0 || player.hp <= 0 || paused || dialogue) return;
+      player.attackCd = 0.32;
+      player.attacking = 0.18;
+      const worldMouse = { x: mouse.x + camera.x, y: mouse.y + camera.y };
+      if (mouse.x || mouse.y) player.facing = angleTo(player, worldMouse);
+      slashArcs.push({ x: player.x, y: player.y, a: player.facing, life: 0.16, r: 62 });
+      sparkLine(player.x + Math.cos(player.facing) * 42, player.y + Math.sin(player.facing) * 42, player.facing, '#fff3b0');
+      for (const e of enemies) {
+        const d = dist(player, e);
+        const da = Math.atan2(Math.sin(angleTo(player, e) - player.facing), Math.cos(angleTo(player, e) - player.facing));
+        if (d < 76 && Math.abs(da) < 1.25) {
+          hitEnemy(e, 18 + player.level * 4, player.facing, 'slash');
+        }
+      }
+    }
+
+    function throwShuriken() {
+      if (player.throwCd > 0 || player.chakra < 12 || player.hp <= 0 || paused || dialogue) return;
+      const worldMouse = { x: mouse.x + camera.x, y: mouse.y + camera.y };
+      if (mouse.x || mouse.y) player.facing = angleTo(player, worldMouse);
+      player.throwCd = 0.55;
+      player.chakra -= 12;
+      projectiles.push({
+        x: player.x + Math.cos(player.facing) * 24,
+        y: player.y + Math.sin(player.facing) * 24,
+        vx: Math.cos(player.facing) * 520,
+        vy: Math.sin(player.facing) * 520,
+        life: 1.15,
+        r: 8,
+        spin: 0,
+        owner: 'player',
+        damage: 16 + player.level * 3
+      });
+      addParticles(player.x, player.y, '#38c8ff', 6, 80);
+    }
+
+    function dash() {
+      if (player.dashCd > 0 || player.chakra < 18 || player.hp <= 0 || paused || dialogue) return;
+      player.dashCd = 0.65;
+      player.chakra -= 18;
+      player.invuln = 0.25;
+      const a = player.facing;
+      moveWithCollision(player, Math.cos(a) * 130, Math.sin(a) * 130);
+      addParticles(player.x - Math.cos(a) * 32, player.y - Math.sin(a) * 32, '#38c8ff', 28, 250);
+      shake = Math.max(shake, 4);
+    }
+
+    function hitEnemy(e, damage, dir, source) {
+      if (e.hp <= 0) return;
+      e.hp -= damage;
+      e.hurt = 0.16;
+      e.x += Math.cos(dir) * 18;
+      e.y += Math.sin(dir) * 18;
+      addParticles(e.x, e.y, source === 'slash' ? '#ffefb2' : '#bdefff', 12, 190);
+      addFloat(Math.round(damage), e.x, e.y - 22, '#ffffff');
+      shake = Math.max(shake, source === 'slash' ? 5 : 3);
+      if (e.hp <= 0) {
+        addParticles(e.x, e.y, '#2c2c35', 38, 260);
+        addFloat('vanished', e.x, e.y - 38, '#d2d2d2');
+        gainXp(e.xp);
+        player.defeated++;
+        if (chance(0.32)) pickups.push({ type: 'dumpling', x: e.x, y: e.y, r: 15, taken: false, bob: rand(0, 4) });
+        updateQuestGoals();
+      }
+    }
+
+    function damagePlayer(amount, from) {
+      if (player.invuln > 0 || player.hp <= 0) return;
+      player.hp -= amount;
+      player.invuln = 0.72;
+      const a = angleTo(from, player);
+      moveWithCollision(player, Math.cos(a) * 30, Math.sin(a) * 30);
+      addParticles(player.x, player.y, '#ff4747', 18, 200);
+      addFloat('-' + amount, player.x, player.y - 28, '#ff7474');
+      shake = Math.max(shake, 10);
+      if (player.hp <= 0) {
+        player.hp = 0;
+        player.respawn = 2.4;
+        showToast('You were knocked down. Focus your chakra to rise again.');
+      }
+    }
+
+    function respawnPlayer() {
+      player.x = 620;
+      player.y = 540;
+      player.hp = Math.max(45, Math.floor(player.maxHp * 0.6));
+      player.chakra = Math.floor(player.maxChakra * 0.55);
+      player.invuln = 1.5;
+      addParticles(player.x, player.y, '#38c8ff', 42, 240);
+    }
+
+    function update(dt) {
+      time += dt;
+      if (!running || paused) return;
+
+      toastTimer -= dt;
+      if (toastTimer <= 0) toastEl.classList.remove('show');
+      shake = Math.max(0, shake - dt * 28);
+
+      player.attackCd = Math.max(0, player.attackCd - dt);
+      player.throwCd = Math.max(0, player.throwCd - dt);
+      player.dashCd = Math.max(0, player.dashCd - dt);
+      player.invuln = Math.max(0, player.invuln - dt);
+      player.attacking = Math.max(0, player.attacking - dt);
+      player.chakra = Math.min(player.maxChakra, player.chakra + dt * (13 + player.level * 1.5));
+
+      if (player.hp <= 0) {
+        player.respawn -= dt;
+        if (player.respawn <= 0) respawnPlayer();
+      } else {
+        updatePlayer(dt);
+      }
+
+      updateEnemies(dt);
+      updateProjectiles(dt);
+      updatePickups(dt);
+      updateEffects(dt);
+      updateQuestGoals();
+      updateHud();
+
+      camera.x = clamp(player.x - width / 2, 0, WORLD.w - width);
+      camera.y = clamp(player.y - height / 2, 0, WORLD.h - height);
+    }
+
+    function updatePlayer(dt) {
+      let mx = 0, my = 0;
+      if (keys.has('w') || keys.has('arrowup')) my -= 1;
+      if (keys.has('s') || keys.has('arrowdown')) my += 1;
+      if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
+      if (keys.has('d') || keys.has('arrowright')) mx += 1;
+      mx += mobileMove.x;
+      my += mobileMove.y;
+      const l = Math.hypot(mx, my);
+      if (l > 0.01) {
+        mx /= l; my /= l;
+        player.facing = Math.atan2(my, mx);
+        const speed = player.speed * (keys.has('shift') ? 1.06 : 1);
+        moveWithCollision(player, mx * speed * dt, my * speed * dt);
+        if (chance(dt * 8)) addParticles(player.x - mx * 12, player.y - my * 12, '#d0aa62', 1, 30);
+      } else if (mouse.x || mouse.y) {
+        const worldMouse = { x: mouse.x + camera.x, y: mouse.y + camera.y };
+        player.facing = angleTo(player, worldMouse);
+      }
+
+      if (mouse.down) attack();
+    }
+
+    function updateEnemies(dt) {
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        e.hurt = Math.max(0, e.hurt - dt);
+        e.attackCd = Math.max(0, e.attackCd - dt);
+        const d = dist(e, player);
+        let mx = 0, my = 0;
+        if (player.hp > 0 && d < e.sense) {
+          const a = angleTo(e, player);
+          e.facing = a;
+          if (d > e.r + player.r + 24) {
+            mx = Math.cos(a);
+            my = Math.sin(a);
+          } else if (e.attackCd <= 0) {
+            e.attackCd = e.type === 'captain' ? 0.75 : 1.05;
+            slashArcs.push({ x: e.x, y: e.y, a: e.facing, life: 0.13, r: e.type === 'captain' ? 58 : 45, enemy: true });
+            damagePlayer(e.damage, e);
+          }
+        } else {
+          e.wanderT -= dt;
+          if (e.wanderT <= 0) { e.wanderT = rand(0.7, 2.1); e.wander = rand(0, TAU); }
+          mx = Math.cos(e.wander) * 0.35;
+          my = Math.sin(e.wander) * 0.35;
+          e.facing = e.wander;
+        }
+        if (mx || my) moveWithCollision(e, mx * e.speed * dt, my * e.speed * dt);
+      }
+      for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].hp <= 0) enemies.splice(i, 1);
+      if (enemies.length < 5 && quest.stage >= 2 && !missionComplete && chance(dt * 0.2)) {
+        spawnEnemy(rand(2380, 2980), rand(910, 1530));
+      }
+    }
+
+    function updateProjectiles(dt) {
+      for (const p of projectiles) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        p.spin += dt * 16;
+        addParticles(p.x, p.y, '#bdefff', 1, 20);
+        if (p.owner === 'player') {
+          for (const e of enemies) {
+            if (e.hp > 0 && Math.hypot(p.x - e.x, p.y - e.y) < e.r + p.r) {
+              hitEnemy(e, p.damage, Math.atan2(p.vy, p.vx), 'shuriken');
+              p.life = 0;
+              break;
+            }
+          }
+        }
+      }
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        if (p.life <= 0 || p.x < -40 || p.x > WORLD.w + 40 || p.y < -40 || p.y > WORLD.h + 40) projectiles.splice(i, 1);
+      }
+    }
+
+    function updatePickups(dt) {
+      for (const p of pickups) {
+        if (p.taken) continue;
+        p.bob += dt;
+        if (Math.hypot(player.x - p.x, player.y - p.y) < player.r + p.r + 8) {
+          p.taken = true;
+          if (p.type === 'scroll') {
+            player.scrolls++;
+            gainXp(20);
+            showToast('Wind-scroll recovered (' + Math.min(3, player.scrolls) + '/3).');
+            addParticles(p.x, p.y, '#fff06e', 32, 180);
+          } else {
+            player.hp = Math.min(player.maxHp, player.hp + 24);
+            player.chakra = Math.min(player.maxChakra, player.chakra + 18);
+            addFloat('dumpling', p.x, p.y - 20, '#a7ffbf');
+            addParticles(p.x, p.y, '#a7ffbf', 16, 120);
+          }
+        }
+      }
+      for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].taken) pickups.splice(i, 1);
+    }
+
+    function updateEffects(dt) {
+      for (const p of particles) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= Math.pow(0.05, dt);
+        p.vy *= Math.pow(0.05, dt);
+        p.life -= dt;
+      }
+      for (let i = particles.length - 1; i >= 0; i--) if (particles[i].life <= 0) particles.splice(i, 1);
+
+      for (const a of slashArcs) a.life -= dt;
+      for (let i = slashArcs.length - 1; i >= 0; i--) if (slashArcs[i].life <= 0) slashArcs.splice(i, 1);
+
+      for (const f of floatingTexts) {
+        f.y += f.vy * dt;
+        f.life -= dt;
+      }
+      for (let i = floatingTexts.length - 1; i >= 0; i--) if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+    }
+
+    function updateHud() {
+      hpBar.style.width = (player.hp / player.maxHp * 100) + '%';
+      chakraBar.style.width = (player.chakra / player.maxChakra * 100) + '%';
+      xpBar.style.width = (player.xp / player.xpNext * 100) + '%';
+      hpText.textContent = Math.ceil(player.hp) + '/' + player.maxHp;
+      chakraText.textContent = Math.ceil(player.chakra) + '/' + player.maxChakra;
+      xpText.textContent = player.xp + '/' + player.xpNext;
+      levelBadge.textContent = 'LV ' + player.level;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      const sx = shake ? rand(-shake, shake) : 0;
+      const sy = shake ? rand(-shake, shake) : 0;
+      ctx.translate(-camera.x + sx, -camera.y + sy);
+      drawWorld();
+      drawEntities();
+      ctx.restore();
+      drawScreenEffects();
+    }
+
+    function drawWorld() {
+      const grd = ctx.createLinearGradient(0, 0, WORLD.w, WORLD.h);
+      grd.addColorStop(0, '#466b50');
+      grd.addColorStop(0.48, '#4f7c52');
+      grd.addColorStop(1, '#345742');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+
+      drawPath(610, 530, 2850, 1230, 180);
+      drawPath(900, 760, 470, 1570, 140);
+      drawPath(1620, 690, 2100, 990, 130);
+
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      ctx.strokeStyle = '#1a2d22';
+      ctx.lineWidth = 4;
+      for (let x = -200; x < WORLD.w + 200; x += 80) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + WORLD.h * 0.33, WORLD.h); ctx.stroke();
+      }
+      ctx.restore();
+
+      for (const g of grassTufts) drawGrass(g);
+      drawRiver();
+      for (const r of rocks) drawRock(r);
+      for (const b of buildings) drawBuilding(b);
+      drawBridge();
+      for (const t of trees) drawTree(t);
+      for (const l of lanterns) drawLantern(l.x, l.y);
+      drawBoundaryWalls();
+    }
+
+    function drawPath(x1, y1, x2, y2, w) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#b98954';
+      ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.strokeStyle = '#d0aa6d';
+      ctx.lineWidth = w * 0.72;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(73,43,20,0.22)';
+      ctx.lineWidth = 5;
+      for (let i = 0; i < 28; i++) {
+        const t = i / 27;
+        const x = x1 + (x2 - x1) * t + Math.sin(i * 4.7) * w * 0.25;
+        const y = y1 + (y2 - y1) * t + Math.cos(i * 3.3) * w * 0.25;
+        ctx.beginPath(); ctx.arc(x, y, 8 + (i % 5), 0, TAU); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawRiver() {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#3ba0cf';
+      ctx.lineWidth = 150;
+      ctx.beginPath();
+      ctx.moveTo(2250, 0);
+      ctx.bezierCurveTo(2450, 420, 2260, 760, 2530, 1130);
+      ctx.bezierCurveTo(2760, 1450, 2630, 1760, 2890, 2200);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+      ctx.lineWidth = 7;
+      for (let i = 0; i < 12; i++) {
+        const y = i * 190 + (time * 28 % 190);
+        ctx.beginPath();
+        ctx.moveTo(2330 + Math.sin(i) * 60, y);
+        ctx.quadraticCurveTo(2490, y + 20, 2620 + Math.cos(i) * 50, y + 65);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawBridge() {
+      ctx.save();
+      ctx.translate(2450, 1080);
+      ctx.rotate(0.18);
+      ctx.fillStyle = '#6a3a21';
+      roundRect(-70, -220, 160, 520, 24, true, true);
+      ctx.fillStyle = '#9c6235';
+      for (let y = -200; y < 285; y += 48) roundRect(-80, y, 180, 25, 8, true, true);
+      ctx.strokeStyle = '#24140d';
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(-85, -210); ctx.lineTo(-85, 300); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(105, -210); ctx.lineTo(105, 300); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBuilding(b) {
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      roundRect(18, b.h - 12, b.w, 34, 16, true, false);
+      ctx.fillStyle = b.wall;
+      roundRect(0, 42, b.w, b.h - 42, 16, true, true);
+      ctx.fillStyle = b.roof;
+      ctx.strokeStyle = '#1b100d';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(-34, 58);
+      ctx.lineTo(b.w / 2, -24);
+      ctx.lineTo(b.w + 34, 58);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#27170f';
+      roundRect(b.w / 2 - 25, b.h - 64, 50, 64, 10, true, true);
+      ctx.fillStyle = '#f4d76b';
+      for (const wx of [42, b.w - 72]) roundRect(wx, 88, 36, 30, 6, true, true);
+      ctx.font = '900 17px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#120d0a';
+      ctx.fillStyle = '#fff0bc';
+      ctx.strokeText(b.label, b.w / 2, 34);
+      ctx.fillText(b.label, b.w / 2, 34);
+      ctx.restore();
+    }
+
+    function drawTree(t) {
+      const sway = Math.sin(time * 1.3 + t.sway) * 3;
+      ctx.save();
+      ctx.translate(t.x, t.y);
+      ctx.fillStyle = '#432615';
+      roundRect(-8, -2, 16, 42, 7, true, false);
+      ctx.fillStyle = '#1c5e39';
+      ctx.strokeStyle = '#143320';
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(sway, -18, t.r, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2f8d4d';
+      ctx.beginPath(); ctx.arc(-t.r * 0.4 + sway, -22, t.r * 0.62, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(t.r * 0.33 + sway, -32, t.r * 0.52, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawRock(r) {
+      ctx.save();
+      ctx.translate(r.x, r.y);
+      ctx.fillStyle = '#6c7770';
+      ctx.strokeStyle = '#2d332f';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r.r * 1.25, r.r, -0.4, 0, TAU);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGrass(g) {
+      if ((g.x < camera.x - 70 || g.x > camera.x + width + 70 || g.y < camera.y - 70 || g.y > camera.y + height + 70)) return;
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      ctx.rotate(g.a);
+      ctx.strokeStyle = 'rgba(26,78,42,0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(4, -13); ctx.moveTo(0, 0); ctx.lineTo(-5, -10); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawLantern(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = '#2b1a10'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(0, 24); ctx.lineTo(0, -45); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,151,44,0.2)';
+      ctx.beginPath(); ctx.arc(0, -48, 52 + Math.sin(time * 4) * 4, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ff9f2f';
+      ctx.strokeStyle = '#2b1a10';
+      roundRect(-13, -62, 26, 32, 8, true, true);
+      ctx.restore();
+    }
+
+    function drawBoundaryWalls() {
+      ctx.save();
+      ctx.strokeStyle = '#2a251b';
+      ctx.lineWidth = 28;
+      ctx.strokeRect(0, 0, WORLD.w, WORLD.h);
+      ctx.strokeStyle = '#806147';
+      ctx.lineWidth = 11;
+      ctx.strokeRect(14, 14, WORLD.w - 28, WORLD.h - 28);
+      ctx.restore();
+    }
+
+    function drawEntities() {
+      const items = [];
+      for (const p of pickups) items.push({ y: p.y, draw: () => drawPickup(p) });
+      for (const npc of npcs) items.push({ y: npc.y, draw: () => drawNpc(npc) });
+      for (const e of enemies) items.push({ y: e.y, draw: () => drawEnemy(e) });
+      items.push({ y: player.y, draw: () => drawPlayer() });
+      items.sort((a, b) => a.y - b.y);
+      for (const item of items) item.draw();
+      for (const p of projectiles) drawProjectile(p);
+      for (const a of slashArcs) drawSlash(a);
+      for (const p of particles) drawParticle(p);
+      for (const f of floatingTexts) drawFloatingText(f);
+    }
+
+    function drawCharacterBase(x, y, r, facing, palette, opts = {}) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(facing);
+      ctx.fillStyle = 'rgba(0,0,0,0.24)';
+      ctx.beginPath(); ctx.ellipse(0, r * 0.9, r * 1.1, r * 0.42, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = palette.dark;
+      ctx.strokeStyle = '#120d0a';
+      ctx.lineWidth = 4;
+      roundRect(-r * 0.55, -r * 0.05, r * 1.1, r * 1.25, 10, true, true);
+      ctx.fillStyle = palette.main;
+      roundRect(-r * 0.5, -r * 0.76, r, r * 0.95, 12, true, true);
+      ctx.fillStyle = palette.accent;
+      roundRect(-r * 0.58, -r * 0.66, r * 1.16, r * 0.22, 8, true, true);
+      ctx.fillStyle = '#f0c28c';
+      ctx.beginPath(); ctx.arc(r * 0.58, -r * 0.08, r * 0.28, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#17110f';
+      ctx.beginPath(); ctx.arc(r * 0.3, -r * 0.34, 2.4, 0, TAU); ctx.fill();
+      ctx.fillStyle = palette.trim;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.25, r * 0.15);
+      ctx.lineTo(r * 0.75, -r * 0.08);
+      ctx.lineTo(-r * 0.05, r * 0.42);
+      ctx.closePath(); ctx.fill();
+      if (opts.tail) {
+        ctx.fillStyle = palette.accent;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.62, -r * 0.56);
+        ctx.quadraticCurveTo(-r * 1.05, -r * 0.88, -r * 0.95, -r * 1.18);
+        ctx.quadraticCurveTo(-r * 0.52, -r * 0.9, -r * 0.35, -r * 0.58);
+        ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      const blink = player.invuln > 0 && Math.floor(time * 22) % 2 === 0;
+      if (blink) ctx.globalAlpha = 0.58;
+      if (player.dashCd > 0.45) {
+        ctx.save(); ctx.globalAlpha = 0.32; drawCharacterBase(player.x - Math.cos(player.facing) * 28, player.y - Math.sin(player.facing) * 28, player.r, player.facing, playerPalette()); ctx.restore();
+      }
+      drawCharacterBase(player.x, player.y, player.r, player.facing, playerPalette(), { tail: true });
+      ctx.globalAlpha = 1;
+      if (player.chakra > 24 && player.hp > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.18 + Math.sin(time * 8) * 0.06;
+        ctx.strokeStyle = '#38c8ff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(player.x, player.y, player.r + 10 + Math.sin(time * 5) * 3, 0, TAU); ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function playerPalette() { return { main: '#ff821c', dark: '#17191f', accent: '#263a62', trim: '#fff2a8' }; }
+
+    function drawNpc(npc) {
+      const palette = { main: npc.color, dark: '#1d2229', accent: '#efe6c9', trim: '#ffcf54' };
+      drawCharacterBase(npc.x, npc.y, npc.r, Math.sin(time + npc.x) * 0.08, palette, { tail: npc.id === 'haku' });
+      if (Math.hypot(player.x - npc.x, player.y - npc.y) < 105) {
+        drawBubble(npc.x, npc.y - 58, 'E');
+      }
+    }
+
+    function drawEnemy(e) {
+      const palette = e.type === 'captain'
+        ? { main: '#4d274b', dark: '#111113', accent: '#c9c9d8', trim: '#e64040' }
+        : { main: '#303545', dark: '#111113', accent: '#dadada', trim: '#d33b2f' };
+      if (e.hurt > 0) ctx.globalAlpha = 0.62;
+      drawCharacterBase(e.x, e.y, e.r, e.facing, palette, { tail: false });
+      ctx.globalAlpha = 1;
+      drawHealthBar(e.x, e.y - e.r - 22, e.hp / e.maxHp, e.type === 'captain');
+    }
+
+    function drawHealthBar(x, y, ratio, big) {
+      ctx.save();
+      const w = big ? 62 : 46;
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      roundRect(x - w / 2, y, w, 8, 4, true, false);
+      ctx.fillStyle = big ? '#d545d2' : '#ed3e36';
+      roundRect(x - w / 2 + 1, y + 1, (w - 2) * clamp(ratio, 0, 1), 6, 3, true, false);
+      ctx.restore();
+    }
+
+    function drawPickup(p) {
+      const bob = Math.sin(time * 4 + p.bob) * 6;
+      ctx.save();
+      ctx.translate(p.x, p.y + bob);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.ellipse(0, 21 - bob, 20, 7, 0, 0, TAU); ctx.fill();
+      if (p.type === 'scroll') {
+        ctx.rotate(Math.sin(time * 2 + p.bob) * 0.15);
+        ctx.fillStyle = '#f2d390';
+        ctx.strokeStyle = '#2a160b'; ctx.lineWidth = 4;
+        roundRect(-19, -12, 38, 24, 8, true, true);
+        ctx.fillStyle = '#c83d25';
+        roundRect(-4, -14, 8, 28, 3, true, false);
+      } else {
+        ctx.fillStyle = '#fff0bc';
+        ctx.strokeStyle = '#2a160b'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0, 0, 14, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#79b254'; ctx.beginPath(); ctx.arc(4, -3, 4, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawProjectile(p) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.spin);
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 3;
+      ctx.fillStyle = '#dfe7ec';
+      for (let i = 0; i < 4; i++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(16, 0); ctx.lineTo(0, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawSlash(a) {
+      ctx.save();
+      ctx.translate(a.x, a.y);
+      ctx.rotate(a.a);
+      ctx.globalAlpha = clamp(a.life / 0.16, 0, 1);
+      ctx.strokeStyle = a.enemy ? '#ff4343' : '#fff6c7';
+      ctx.lineWidth = a.enemy ? 8 : 10;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, a.r, -0.72, 0.72);
+      ctx.stroke();
+      ctx.strokeStyle = a.enemy ? '#ffd1d1' : '#ffb13b';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, a.r - 9, -0.55, 0.55); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawParticle(p) {
+      ctx.save();
+      ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawFloatingText(f) {
+      ctx.save();
+      ctx.globalAlpha = clamp(f.life, 0, 1);
+      ctx.font = '900 16px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#000';
+      ctx.fillStyle = f.color;
+      ctx.strokeText(f.text, f.x, f.y);
+      ctx.fillText(f.text, f.x, f.y);
+      ctx.restore();
+    }
+
+    function drawBubble(x, y, text) {
+      ctx.save();
+      ctx.fillStyle = '#fff3be';
+      ctx.strokeStyle = '#130d08';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(x, y, 18, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#18110d';
+      ctx.font = '1000 16px system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y + 1);
+      ctx.restore();
+    }
+
+    function drawScreenEffects() {
+      if (player.hp <= 0) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(120,0,0,0.35)';
+        ctx.fillRect(0, 0, width, height);
+        ctx.font = '1000 42px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff0bc';
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 6;
+        ctx.strokeText('Knocked Down', width / 2, height / 2);
+        ctx.fillText('Knocked Down', width / 2, height / 2);
+        ctx.font = '700 16px system-ui, sans-serif';
+        ctx.fillText('Recovering chakra...', width / 2, height / 2 + 34);
+        ctx.restore();
+      }
+      if (paused) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0,0,width,height);
+        ctx.font = '1000 54px system-ui, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff0bc'; ctx.strokeStyle = '#000'; ctx.lineWidth = 7;
+        ctx.strokeText('Paused', width / 2, height / 2);
+        ctx.fillText('Paused', width / 2, height / 2);
+        ctx.restore();
+      }
+      drawMiniMap();
+    }
+
+    function drawMiniMap() {
+      const w = 150, h = 105;
+      const x = width - w - 16, y = height - h - 16;
+      if (width < 760) return;
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = 'rgba(16,12,9,0.76)';
+      roundRect(x, y, w, h, 14, true, true);
+      ctx.beginPath();
+      ctx.rect(x + 9, y + 9, w - 18, h - 18);
+      ctx.clip();
+      ctx.fillStyle = '#476b4c'; ctx.fillRect(x + 9, y + 9, w - 18, h - 18);
+      function mapX(v) { return x + 9 + v / WORLD.w * (w - 18); }
+      function mapY(v) { return y + 9 + v / WORLD.h * (h - 18); }
+      ctx.fillStyle = '#d0aa6d';
+      ctx.beginPath(); ctx.arc(mapX(player.x), mapY(player.y), 4, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ff4343';
+      for (const e of enemies) { ctx.beginPath(); ctx.arc(mapX(e.x), mapY(e.y), 2.5, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = '#fff06e';
+      for (const p of pickups) if (p.type === 'scroll') { ctx.beginPath(); ctx.arc(mapX(p.x), mapY(p.y), 2.8, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    }
+
+    function roundRect(x, y, w, h, r, fill, stroke) {
+      const rr = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    function loop(now) {
+      const dt = Math.min(0.033, (now - last) / 1000 || 0);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      running = true;
+      paused = false;
+      menu.style.display = 'none';
+      showToast('Find Master Haku at the dojo gate.');
+      renderQuest();
+      updateHud();
+      addParticles(player.x, player.y, '#ffb13b', 28, 180);
+    }
+
+    function keyName(e) { return e.key.toLowerCase(); }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('keydown', e => {
+      const k = keyName(e);
+      keys.add(k);
+      if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
+      if (!running && (k === 'enter' || k === ' ')) startGame();
+      if (k === ' ' && running) attack();
+      if (k === 'q' && running) throwShuriken();
+      if (k === 'shift' && running) dash();
+      if (k === 'e' && running) interact();
+      if (k === 'p' && running) { paused = !paused; showToast(paused ? 'Paused' : 'Mission resumed'); }
+    }, { passive: false });
+
+    window.addEventListener('keyup', e => keys.delete(keyName(e)));
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    });
+    canvas.addEventListener('mousedown', e => { mouse.down = true; mouse.x = e.clientX; mouse.y = e.clientY; if (running) attack(); });
+    window.addEventListener('mouseup', () => { mouse.down = false; });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    startBtn.addEventListener('click', startGame);
+
+    function setupMobilePad() {
+      let padId = null;
+      mobilePad.addEventListener('pointerdown', e => {
+        padId = e.pointerId;
+        mobilePad.setPointerCapture(padId);
+        mobileMove.active = true;
+        updateStick(e);
+      });
+      mobilePad.addEventListener('pointermove', e => { if (e.pointerId === padId) updateStick(e); });
+      mobilePad.addEventListener('pointerup', resetStick);
+      mobilePad.addEventListener('pointercancel', resetStick);
+
+      function updateStick(e) {
+        const rect = mobilePad.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let x = e.clientX - cx;
+        let y = e.clientY - cy;
+        const m = Math.hypot(x, y);
+        const max = 42;
+        if (m > max) { x = x / m * max; y = y / m * max; }
+        mobileMove.x = x / max;
+        mobileMove.y = y / max;
+        stick.style.transform = `translate(${x}px, ${y}px)`;
+      }
+      function resetStick() {
+        padId = null;
+        mobileMove.x = 0; mobileMove.y = 0; mobileMove.active = false;
+        stick.style.transform = 'translate(0,0)';
+      }
+    }
+
+    document.querySelectorAll('[data-act]').forEach(btn => {
+      btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const act = btn.dataset.act;
+        if (act === 'attack') attack();
+        if (act === 'throw') throwShuriken();
+        if (act === 'dash') dash();
+        if (act === 'interact') interact();
+      });
+    });
+
+    function boot() {
+      resize();
+      initDecor();
+      initPickups();
+      resetEnemies();
+      renderQuest();
+      updateHud();
+      setupMobilePad();
+      requestAnimationFrame(loop);
+    }
+
+    boot();
+  })();
+  </script>
+</body>
+</html>
